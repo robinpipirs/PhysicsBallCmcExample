@@ -21,6 +21,7 @@ public:
 
 protected:
 	virtual void PhysCustom(float deltaTime, int32 Iterations) override;
+	virtual void BeginPlay() override;
 private:
 	void PhysMoveObject(float deltaTime, int32 Iterations);
 	float BounceSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact);

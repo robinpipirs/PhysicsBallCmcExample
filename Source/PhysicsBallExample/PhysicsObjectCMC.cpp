@@ -15,6 +15,12 @@ void UPhysicsObjectCMC::PhysCustom(float deltaTime, int32 Iterations)
 	PhysMoveObject(deltaTime, Iterations);
 }
 
+void UPhysicsObjectCMC::BeginPlay()
+{
+	Super::BeginPlay();
+	UE_LOG(LogTemp, Warning, TEXT("BeginPlay() wooo."));
+}
+
 void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 {
 	if (deltaTime < MIN_TICK_TIME)
@@ -22,6 +28,8 @@ void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 		return;
 	}
 
+	UE_LOG(LogTemp, Warning, TEXT("Phys is ticking."));
+	
 	RestorePreAdditiveRootMotionVelocity();
 
 	// Apply Gravity

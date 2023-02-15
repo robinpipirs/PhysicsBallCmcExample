@@ -24,8 +24,9 @@ protected:
 	virtual void BeginPlay() override;
 private:
 	void PhysMoveObject(float deltaTime, int32 Iterations);
-	float BounceSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact);
-	FVector ComputeBounceDelta(const FVector& Delta, float Time, const FVector& Normal, const FHitResult& Hit) const;
+	bool BounceSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact);
+	FVector ComputeBounceDelta(const FVector& Delta, float Time, const FVector& HitNormal, const FHitResult& Hit) const;
+	FVector LimitVelocity(FVector NewVelocity) const;
 	FVector ApplyGravityVector(const FVector& Delta, float DeltaTime, int32 Iterations);
 	FVector CalculateAirResistanceVector(const FVector& InitialVelocity, float DeltaTime);
 	FVector ApplyFriction(const FVector& Delta, float DeltaTime);

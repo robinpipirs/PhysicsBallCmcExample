@@ -28,4 +28,5 @@ private:
 	FVector ComputeBounceDelta(const FVector& Delta, float Time, const FVector& Normal, const FHitResult& Hit) const;
 	FVector ApplyGravityVector(const FVector& Delta, float DeltaTime, int32 Iterations);
 	FVector CalculateAirResistanceVector(const FVector& InitialVelocity, float DeltaTime);
+	FVector ApplyFriction(const FVector& Delta, float DeltaTime);
 };

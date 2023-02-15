@@ -28,7 +28,7 @@ void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 		return;
 	}
 
-	UE_LOG(LogTemp, Warning, TEXT("Phys is ticking."));
+	// UE_LOG(LogTemp, Warning, TEXT("Phys is ticking."));
 	
 	RestorePreAdditiveRootMotionVelocity();
 
@@ -56,25 +56,15 @@ void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 	FHitResult Hit(1.f);
 	SafeMoveUpdatedComponent(Adjusted, UpdatedComponent->GetComponentQuat(), true, Hit);
 
-	bool bSkipThis = true;
+	bool bSkipThis = false;
 	if (!bSkipThis && Hit.Time < 1.f)
 	{
 
 		const FVector GravDir = FVector(0.f, 0.f, -1.f);
 		const FVector VelDir = Velocity.GetSafeNormal();
 
-		// // Add friction
-		// const float Friction = 1.3f;
-		// const float CurrentSpeedSq = Adjusted.SizeSquared();
-		// const float VelSize = FMath::Sqrt(CurrentSpeedSq);
-		//
-		// // UE_LOG(LogTemp, Warning, TEXT("VelSize: %f."), VelSize);
-		//
-		// FVector FrictionVector = (VelDir * VelSize) * FMath::Min((1.f - Hit.Time) * 0.125f, 1.f);
-		//
-		// // UE_LOG(LogTemp, Warning, TEXT("Adjusted Vector: %f, Friction Vector: %f."), Adjusted.Size(), FrictionVector.Size());
-		//
-		// Adjusted = Adjusted - FrictionVector;
+		// Apply friction
+		Velocity = ApplyFriction(Velocity, (1.f - Hit.Time));
 		
 		const float UpDown = GravDir | VelDir;
 		bool bSteppedUp = false;
@@ -203,4 +193,21 @@ FVector UPhysicsObjectCMC::CalculateAirResistanceVector(const FVector& InitialVe
 	}
 	Result = UKismetMathLibrary::Add_VectorVector(Result, AirResistanceVector);
 	return Result;
+}
+
+FVector UPhysicsObjectCMC::ApplyFriction(const FVector& Delta, float DeltaTime)
+{
+	// // Add friction
+	// const float Friction = 1.3f;
+	// const float CurrentSpeedSq = Adjusted.SizeSquared();
+	// const float VelSize = FMath::Sqrt(CurrentSpeedSq);
+	//
+	// // UE_LOG(LogTemp, Warning, TEXT("VelSize: %f."), VelSize);
+	//
+	// FVector FrictionVector = (VelDir * VelSize) * FMath::Min((1.f - Hit.Time) * 0.125f, 1.f);
+	//
+	// // UE_LOG(LogTemp, Warning, TEXT("Adjusted Vector: %f, Friction Vector: %f."), Adjusted.Size(), FrictionVector.Size());
+	//
+	// Adjusted = Adjusted - FrictionVector;
+	return Delta;
 }

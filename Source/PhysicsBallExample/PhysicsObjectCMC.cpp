@@ -12,7 +12,7 @@ UPhysicsObjectCMC::UPhysicsObjectCMC()
 void UPhysicsObjectCMC::PhysCustom(float deltaTime, int32 Iterations)
 {
 	Super::PhysCustom(deltaTime, Iterations);
-	// PhysMoveObject(deltaTime, Iterations);
+	PhysMoveObject(deltaTime, Iterations);
 }
 
 void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)

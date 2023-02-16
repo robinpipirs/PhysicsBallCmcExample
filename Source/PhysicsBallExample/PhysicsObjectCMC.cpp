@@ -59,16 +59,14 @@ void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 	FVector Adjusted = Velocity * deltaTime;
 	FHitResult Hit(1.f);
 	SafeMoveUpdatedComponent(Adjusted, UpdatedComponent->GetComponentQuat(), true, Hit);
-
-	bool bSkipThis = false;
-	if (!bSkipThis && Hit.Time < 1.f)
+	
+	if (Hit.Time < 1.f)
 	{
-
 		const FVector GravDir = FVector(0.f, 0.f, -1.f);
 		const FVector VelDir = Velocity.GetSafeNormal();
 
 		// Apply friction
-		Velocity = ApplyFriction(Velocity, (1.f - Hit.Time));
+		Adjusted = ApplyFriction(Adjusted, (1.f - Hit.Time), Hit);
 		
 		const float UpDown = GravDir | VelDir;
 		bool bSteppedUp = false;
@@ -86,49 +84,14 @@ void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 		{
 			//adjust and try again
 			HandleImpact(Hit, deltaTime, Adjusted);
-			
+
 			bool bBounced = BounceSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
-			// bool bShouldSlide = false;
+			// bool bBounced = false;
 			if (!bBounced)
 			{
-				// const float Friction = 0.2f;
-				// const FVector Force = Adjusted;
-				// const float ForceDotN = (Force | Hit.Normal);
-				// if (ForceDotN < 0.f)
-				// {
-				// 	UE_LOG(LogTemp, Warning, TEXT("ForceDotN()"));
-				// 	const FVector ProjectedForce = FVector::VectorPlaneProject(Force, Hit.Normal);
-				// 	const FVector NewVelocity = Adjusted + ProjectedForce;
-				//
-				// 	const FVector FrictionForce = -NewVelocity.GetSafeNormal() * FMath::Min(-ForceDotN * Friction, NewVelocity.Size());
-				// 	Adjusted = ConstrainDirectionToPlane(NewVelocity + FrictionForce);
-				// }
-
 				const float RequestedSpeedSquared = Adjusted.SizeSquared();
 				if (!(RequestedSpeedSquared < UE_KINDA_SMALL_NUMBER))
 				{
-					float Friction = 0.3f;
-					Friction = FMath::Max(0.f, Friction);
-					const float MaxAccel = GetMaxAcceleration();
-					float MaxSpeed = GetMaxSpeed();
-					
-					float RequestedSpeed = FMath::Sqrt(RequestedSpeedSquared);
-					const FVector RequestedMoveDir = Adjusted / RequestedSpeed;
-					RequestedSpeed = FMath::Min(MaxSpeed, RequestedSpeed);
-			
-					// Compute actual requested velocity
-					const float CurrentSpeedSq = Adjusted.SizeSquared();
-					
-					const float VelSize = FMath::Sqrt(CurrentSpeedSq);
-					UE_LOG(LogTemp, Warning, TEXT("VelSize: %f."),VelSize);
-					const float DeltaTime = (1.f - Hit.Time);
-
-					FVector Multiplier = Adjusted - (RequestedMoveDir * VelSize * (0.9f));
-					UE_LOG(LogTemp, Warning, TEXT("Multiplier: (%f)."), Multiplier.Size());
-					FVector FrictionVector = (Multiplier) * FMath::Min(   DeltaTime * Friction, 1.f);
-					UE_LOG(LogTemp, Warning, TEXT("Adjusted - FrictionVector: (%f - %f)."), Adjusted.Size(), FrictionVector.Size());
-					Adjusted = Adjusted - FrictionVector;
-
 					UE_LOG(LogTemp, Warning, TEXT("SlideAlongSurface()"));
 					SlideAlongSurface(Adjusted, (1.f - Hit.Time), Hit.Normal, Hit, true);
 				}
@@ -143,6 +106,38 @@ void UPhysicsObjectCMC::PhysMoveObject(float deltaTime, int32 Iterations)
 	}
 }
 
+FVector UPhysicsObjectCMC::ApplyFriction(const FVector& Delta, float DeltaTime, const FHitResult& Hit)
+{
+	FVector TempVelocity = Delta;
+	const float RequestedSpeedSquared = Delta.SizeSquared();
+	if (RequestedSpeedSquared >= UE_KINDA_SMALL_NUMBER)
+	{
+		float Friction = 0.3f;
+		Friction = FMath::Max(0.f, Friction);
+		const float MaxAccel = GetMaxAcceleration();
+		float MaxSpeed = GetMaxSpeed();
+					
+		float RequestedSpeed = FMath::Sqrt(RequestedSpeedSquared);
+		const FVector RequestedMoveDir = Delta / RequestedSpeed;
+		RequestedSpeed = FMath::Min(MaxSpeed, RequestedSpeed);
+			
+		// Compute actual requested velocity
+		const float CurrentSpeedSq = Delta.SizeSquared();
+					
+		const float VelSize = FMath::Sqrt(CurrentSpeedSq);
+		const float DeltaTime = (1.f - Hit.Time);
+
+		FVector Multiplier = Delta - (RequestedMoveDir * VelSize * (0.90f));
+		FVector FrictionVector = (Multiplier) * FMath::Min(   DeltaTime * Friction, 1.f);
+
+		// UE_LOG(LogTemp, Warning, TEXT("VelSize: %f."),VelSize);
+		// UE_LOG(LogTemp, Warning, TEXT("Multiplier: (%f)."), Multiplier.Size());
+		// UE_LOG(LogTemp, Warning, TEXT("Adjusted - FrictionVector: (%f - %f)."), Delta.Size(), FrictionVector.Size());
+		TempVelocity = Delta - FrictionVector;
+	}
+	return TempVelocity;
+}
+
 bool UPhysicsObjectCMC::BounceSurface(const FVector& Delta, float Time, const FVector& Normal, FHitResult& Hit, bool bHandleImpact)
 {
 	if (!Hit.bBlockingHit)
@@ -152,11 +147,12 @@ bool UPhysicsObjectCMC::BounceSurface(const FVector& Delta, float Time, const FV
 
 	float PercentTimeApplied = 0.f;
 	const FVector OldHitNormal = Normal;
-	float BounceVelocityStopSimulatingThreshold = 5.f;
+	float BounceVelocityStopSimulatingThreshold = 1.f;
 
 
 	FVector BounceDelta = ComputeBounceDelta(Delta, Time, Normal, Hit);
-	if (!(BounceDelta.SizeSquared() < FMath::Square(BounceVelocityStopSimulatingThreshold)))
+	const float VBounceDelta = (BounceDelta | Normal);
+	if (!(VBounceDelta < FMath::Square(BounceVelocityStopSimulatingThreshold)))
 	{
 		UE_LOG(LogTemp, Warning, TEXT("Bounce"));
 		const FQuat Rotation = UpdatedComponent->GetComponentQuat();
@@ -189,10 +185,9 @@ bool UPhysicsObjectCMC::BounceSurface(const FVector& Delta, float Time, const FV
 FVector UPhysicsObjectCMC::ComputeBounceDelta(const FVector& Delta, float Time, const FVector& HitNormal, const FHitResult& Hit) const
 {
 	float Bounciness = 0.6f;
-	float Friction = 0.2f;
-	float MinFrictionFraction = 0.0f;
-	bool bIsSliding = false;
-
+	float Friction = 0.4f;
+	float MinFrictionFraction = 0.1f;
+	bool bBounceAngleAffectsFriction = false;
 	FVector TempVelocity = Delta;
 	const FVector Normal = ConstrainNormalToPlane(Hit.Normal);
 	const float VDotNormal = (Delta | Normal);
@@ -207,7 +202,7 @@ FVector UPhysicsObjectCMC::ComputeBounceDelta(const FVector& Delta, float Time, 
 		TempVelocity += ProjectedNormal;
 
 		// Only tangential velocity should be affected by friction.
-		const float ScaledFriction = (true || bIsSliding) ? FMath::Clamp(-VDotNormal / TempVelocity.Size(), MinFrictionFraction, 1.f) * Friction : Friction;
+		const float ScaledFriction = bBounceAngleAffectsFriction ? FMath::Clamp(-VDotNormal / TempVelocity.Size(), MinFrictionFraction, 1.f) * Friction : Friction;
 		TempVelocity *= FMath::Clamp(1.f - ScaledFriction, 0.f, 1.f);
 
 		// Coefficient of restitution only applies perpendicular to impact.
@@ -215,6 +210,11 @@ FVector UPhysicsObjectCMC::ComputeBounceDelta(const FVector& Delta, float Time, 
 
 		// Bounciness could cause us to exceed max speed.
 		TempVelocity = LimitVelocity(TempVelocity);
+
+
+		UE_LOG(LogTemp, Warning, TEXT("ScaledFriction: %f."), ScaledFriction);
+		UE_LOG(LogTemp, Warning, TEXT("Delta: %f."), Delta.SizeSquared());
+		UE_LOG(LogTemp, Warning, TEXT("TempVelocity: %f."), TempVelocity.SizeSquared());
 	}
 	
 	// UE_LOG(LogTemp, Warning, TEXT("BounceDelta: %f"), BounceDelta.Size());
@@ -267,19 +267,4 @@ FVector UPhysicsObjectCMC::CalculateAirResistanceVector(const FVector& InitialVe
 	return Result;
 }
 
-FVector UPhysicsObjectCMC::ApplyFriction(const FVector& Delta, float DeltaTime)
-{
-	// // Add friction
-	// const float Friction = 1.3f;
-	// const float CurrentSpeedSq = Adjusted.SizeSquared();
-	// const float VelSize = FMath::Sqrt(CurrentSpeedSq);
-	//
-	// // UE_LOG(LogTemp, Warning, TEXT("VelSize: %f."), VelSize);
-	//
-	// FVector FrictionVector = (VelDir * VelSize) * FMath::Min((1.f - Hit.Time) * 0.125f, 1.f);
-	//
-	// // UE_LOG(LogTemp, Warning, TEXT("Adjusted Vector: %f, Friction Vector: %f."), Adjusted.Size(), FrictionVector.Size());
-	//
-	// Adjusted = Adjusted - FrictionVector;
-	return Delta;
-}
+

@@ -29,5 +29,5 @@ private:
 	FVector LimitVelocity(FVector NewVelocity) const;
 	FVector ApplyGravityVector(const FVector& Delta, float DeltaTime, int32 Iterations);
 	FVector CalculateAirResistanceVector(const FVector& InitialVelocity, float DeltaTime);
-	FVector ApplyFriction(const FVector& Delta, float DeltaTime);
+	FVector ApplyFriction(const FVector& Delta, float DeltaTime, const FHitResult& Hit);
 };
